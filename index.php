@@ -7,6 +7,7 @@ class Task {
 	private $text;
 	private $time;
 	private $duration;
+	private $priority;
 
 	public function __construct($source) {
 		preg_match('!^(?P<key>\d+) \[(?P<state>.)\] (?P<text>[^\[]+)(| \[(?P<time>[^\[]+)])(| \((?P<duration>[^\)]*)\))$!', trim($source), $matches);
@@ -15,6 +16,10 @@ class Task {
 		$this->text = $matches['text'];
 		$this->time = (isset($matches['time']) && $matches['time']) ? strtotime($matches['time']) : null;
 		$this->duration = (isset($matches['duration'])) ? $matches['duration'] : null;
+
+		if (preg_match('/!!!/', $this->text)) {
+			$this->priority = 'high';
+		}
 	}
 
 	public static function convertToString($sec) {
@@ -78,6 +83,13 @@ class Task {
 		return $this->duration;
 	}
 
+	/**
+	 * @return string
+	 */
+	public function getPriority() {
+		return $this->priority;
+	}
+
 	public function __toString() {
 		return $this->key . " [" . $this->state . "] " . $this->text . ($this->time ? " [" . date('d.m.Y H:i', $this->time) . "]" : "") . ($this->duration ? " (" . $this->duration . ")" : "");
 	}
@@ -110,10 +122,13 @@ usort($tasks, function($a, $b) {
 	$aState = $a->getStateNum();
 	$bState = $b->getStateNum();
 	if ($aState == $bState) {
-		if ($a->getKey() == $b->getKey()) {
-			return 0;
+		if ($a->getPriority() == $b->getPriority()) {
+			if ($a->getKey() == $b->getKey()) {
+				return 0;
+			}
+			return $a->getKey() < $b->getKey() ? 1 : -1;
 		}
-		return $a->getKey() < $b->getKey() ? 1 : -1;
+		return $a->getPriority() == 'high' ? -1 : 1;
 	}
 	return ($aState < $bState) ? -1 : 1;
 });
@@ -152,14 +167,14 @@ if (isset($_GET['finish'])) {
 /** @var Task $task */
 foreach ($tasks as $key => $task) {
 	?>
-	<div role="task" style="font-family: 'Courier New'" data-index="<?=$key + 1;?>">
+	<div role="task" style="font-family: 'Courier New'" data-index="<?=$key + 1;?>" data-priority="<?=$task->getPriority(); ?>">
 		[<?= $task->getState(); ?>]
-		<?= $task->getText(); ?>
+		<span class="text"><?= $task->getText(); ?></span>
 		<?= $task->getTime() ? "[" . date('d.m.Y H:i', $task->getTime()) . "]" : ""; ?>
 		<?= $task->getDuration() ? "(" . $task->getDuration() . ")" : ""; ?>
 
-		<?php if ($task->getState() == ' ') : ?><a role="start" href="?start=<?= $key; ?>">[s]</a><?php endif; ?>
-		<?php if ($task->getState() != 'x') : ?><a role="finish" href="?finish=<?= $key; ?>">[f]</a><?php endif; ?>
+		<?php if ($task->getState() == ' ') : ?><a role="start" href="?start=<?= $key; ?>">[o]</a><?php endif; ?>
+		<?php if ($task->getState() != 'x') : ?><a role="finish" href="?finish=<?= $key; ?>">[x]</a><?php endif; ?>
 	</div>
 	<?php
 }
@@ -168,51 +183,70 @@ foreach ($tasks as $key => $task) {
 	.active {
 		background: slategray;
 	}
+	[data-priority=high] span.text {
+		color: red;
+		font-weight: bold;
+	}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script type="text/javascript">
 	var curIdx = 0, maxIdx = <?=count($tasks);?>;
 	$(function() {
 		$('#newtask').focus();
-	});
-	$(document).keydown(function(event) {
+
 		function highlight() {
 			$('[role=task]').removeClass('active');
 			$('[role=task][data-index=' + curIdx + ']').addClass('active');
+			$('[role=task][data-index=' + curIdx + ']')[0].scrollIntoView();
 		}
-		console.log(event.keyCode);
-		switch (event.keyCode) {
-			case 40: // DOWN
-				$('#newtask').blur();
-				curIdx++;
-				if (curIdx > maxIdx) {
-					curIdx = 0;
-					$('#newtask').focus();
-				}
-				highlight();
-				break;
-			case 38: // UP
-				$('#newtask').blur();
-				curIdx--;
-				if (curIdx < 0) {
-					curIdx = maxIdx;
-				}
-				if (curIdx === 0) {
-					$('#newtask').focus();
-				}
-				highlight();
-				break;
-			case 79: // o
-				if (curIdx !== 0) {
-					$('[role=start]', $('[role=task][data-index=' + curIdx + ']'))[0].click();
-					console.log($('[role=start]', $('[role=task][data-index=' + curIdx + ']')));
-				}
-				break;
-			case 88: // x
-				if (curIdx !== 0) {
-					$('[role=finish]', $('[role=task][data-index=' + curIdx + ']'))[0].click();
-				}
-				break;
-		}
+
+		$('#newtask').focus(function() {
+			curIdx = 0;
+			highlight();
+		});
+
+		$(document).keydown(function(event) {
+			function prevent() {
+				event.preventDefault();
+				event.stopPropagation();
+			}
+			switch (event.keyCode) {
+				case 40: // DOWN
+					$('#newtask').blur();
+					curIdx++;
+					if (curIdx > maxIdx) {
+						curIdx = 0;
+						$('#newtask').focus();
+					}
+					highlight();
+					prevent();
+					break;
+				case 38: // UP
+					$('#newtask').blur();
+					curIdx--;
+					if (curIdx < 0) {
+						curIdx = maxIdx;
+					}
+					if (curIdx === 0) {
+						$('#newtask').focus();
+					}
+					highlight();
+					prevent();
+					break;
+				case 79: // o
+					if (curIdx !== 0) {
+						$('[role=start]', $('[role=task][data-index=' + curIdx + ']'))[0].click();
+						console.log($('[role=start]', $('[role=task][data-index=' + curIdx + ']')));
+						prevent();
+					}
+					break;
+				case 88: // x
+					if (curIdx !== 0) {
+						$('[role=finish]', $('[role=task][data-index=' + curIdx + ']'))[0].click();
+						prevent();
+					}
+					break;
+			}
+		});
 	});
 </script>
