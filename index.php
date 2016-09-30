@@ -118,7 +118,7 @@ $tasks = array_map(
 	}, $tasks
 );
 
-usort($tasks, function($a, $b) {
+usort($tasks, function(Task $a, Task $b) {
 	$aState = $a->getStateNum();
 	$bState = $b->getStateNum();
 	if ($aState == $bState) {
@@ -160,7 +160,7 @@ if (isset($_GET['finish'])) {
 ?>
 	<div>
 		<form method="post">
-			<input type="text" name="newtask" id="newtask" placeholder="enter new task"/><input type="submit" value="Add"/>
+			<input type="text" name="newtask" id="newtask" placeholder="enter new task" autocomplete="off"/><input type="submit" value="Add"/>
 		</form>
 	</div>
 <?php
