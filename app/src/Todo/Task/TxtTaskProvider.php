@@ -64,6 +64,9 @@ class TxtTaskProvider implements ITaskProvider {
 				$projectId = $projectName = "";
 				$time = (isset($matches['time']) && $matches['time']) ? strtotime($matches['time']) : null;
 				$duration = (isset($matches['duration'])) ? $matches['duration'] : null;
+				if (strval(intval($duration)) != $duration) {
+					$duration = Task::parseDuration($duration);
+				}
 				$priority = 'normal';
 				if (preg_match('/!!!/', $text)) {
 					$priority = 'high';

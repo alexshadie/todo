@@ -63,6 +63,15 @@ class Task {
 	}
 
 	/**
+	 * @param $duration
+	 * @return int
+	 */
+	public static function parseDuration($duration) {
+		preg_match('!^(|(?P<hr>\d+) hr)(| )(|(?P<min>\d+) min)(| )(|(?P<sec>\d+) sec)$!', $duration, $matches);
+		return $matches['hr'] * 3600 + $matches['min'] * 60 + $matches['sec'];
+	}
+
+	/**
 	 * @return TaskBuilder
 	 */
 	public static function build() {
