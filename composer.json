@@ -1,0 +1,19 @@
+{
+    "name": "alexshadie/todolist",
+    "authors": [
+        {
+            "name": "Alex Shadie",
+            "email": "alex@astra.ws"
+        }
+    ],
+    "autoload": {
+        "psr-0": {
+            "Todo": [
+                "app/src/"
+            ]
+        }
+    },
+    "require": {
+        "php": ">=5.6.0"
+    }
+}
